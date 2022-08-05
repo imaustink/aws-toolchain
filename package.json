@@ -1,0 +1,22 @@
+{
+  "name": "aws-toolchain",
+  "version": "0.1.4",
+  "description": "Tools to make AWS less painful",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "ecs": "bin/ecs-cli"
+  },
+  "author": "Austin Kurpuis",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.142.0",
+    "@aws-sdk/client-ecs": "^3.142.0",
+    "@aws-sdk/client-sts": "^3.142.0",
+    "@aws-sdk/credential-provider-node": "^3.142.0",
+    "signale": "^1.4.0",
+    "yargs": "^17.5.1"
+  }
+}

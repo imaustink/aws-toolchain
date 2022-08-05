@@ -1,0 +1,55 @@
+#!/usr/bin/env node
+const { AWSConfiguration } = require("../src/aws");
+const { CloudWatchClient } = require("../src/cloudwatch");
+const { ECSClient } = require("../src/ecs");
+const { signale } = require("../src/signale");
+
+const { argv } = require("yargs/yargs")(process.argv.slice(2))
+  .command({
+    command: "logs",
+    aliases: ["log", "tail"],
+    desc: "Tail the logs of an ECS container",
+    builder: (yargs) => {
+      return yargs
+        .usage("Usage: $0 logs -p bafs-dev -c clearwater-ecs -s objects")
+        .alias("c", "cluster")
+        .alias("s", "service")
+        .alias("f", "follow")
+        .boolean("f")
+        .demandOption(["profile", "cluster", "service"]);
+    },
+  })
+  .alias("r", "region")
+  .alias("p", "profile")
+  .default("r", "us-east-1")
+  .demandCommand();
+
+// TODO use arg parser
+const {
+  profile,
+  region,
+  cluster,
+  service,
+  follow,
+  _: [command],
+} = argv;
+
+const configuration = new AWSConfiguration(profile, region);
+const ecsClient = new ECSClient(configuration);
+const cloudWatchClient = new CloudWatchClient(configuration);
+
+signale.log({ profile, region, cluster, service, command });
+
+switch (command) {
+  case "logs":
+    logsHandler().catch((error) => signale.error(error));
+}
+
+async function logsHandler() {
+  const clusterArn = await ecsClient.findCluster(cluster);
+  const { logGroupName, logStreamName } = await ecsClient.findTaskLogStream(
+    clusterArn,
+    service
+  );
+  await cloudWatchClient.tailLogStream(logGroupName, logStreamName, { follow });
+}
