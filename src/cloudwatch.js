@@ -10,7 +10,7 @@ class CloudWatchClient {
   }
 
   async tailLogStream(logGroupName, logStreamName, { nextToken, follow }) {
-    signale.info("Tailing logs for", logGroupName, logStreamName);
+    signale.log("Tailing logs for", logGroupName, logStreamName);
 
     const logEvents = await this.client.getLogEvents({
       logStreamName,

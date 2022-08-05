@@ -7,7 +7,7 @@ class ECSClient {
   }
 
   async findCluster(name) {
-    signale.info(`Searching for cluster matching ${name}`);
+    signale.log(`Searching for cluster matching ${name}`);
 
     const clusters = await this.client.listClusters({});
 
@@ -30,7 +30,7 @@ class ECSClient {
   }
 
   async findTaskLogStream(cluster, name) {
-    signale.info(`Searching for task matching ${name}`);
+    signale.log(`Searching for task matching ${name}`);
 
     // TODO filter tasks here so we can bail out early
     const tasks = await this.client.listTasks({

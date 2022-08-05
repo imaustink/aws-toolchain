@@ -22,6 +22,7 @@ const { argv } = require("yargs/yargs")(process.argv.slice(2))
   .alias("r", "region")
   .alias("p", "profile")
   .default("r", "us-east-1")
+  .option("debug")
   .demandCommand();
 
 // TODO use arg parser

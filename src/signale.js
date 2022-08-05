@@ -1,14 +1,11 @@
 const { Signale } = require("signale");
 
-const { argv } = require("yargs/yargs")(process.argv.slice(2))
-  .option("debug")
-  .option("silent");
+const { argv } = require("yargs/yargs")(process.argv.slice(2)).option("debug");
 
-const { silent, debug } = argv;
+const { debug } = argv;
 
 const options = {
-  disabled: silent,
-  logLevel: debug ? "debug" : "info",
+  disabled: !debug,
 };
 
 const signale = new Signale(options);
