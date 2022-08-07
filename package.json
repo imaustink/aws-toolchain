@@ -1,14 +1,16 @@
 {
   "name": "aws-toolchain",
   "description": "Tools to make AWS less painful",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "author": "Austin Kurpuis",
   "bin": {
-    "ecs": "bin/ecs-cli"
+    "ecs": "bin/ecs-cli",
+    "lambda": "bin/lambda-cli"
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch-logs": "^3.142.0",
     "@aws-sdk/client-ecs": "^3.142.0",
+    "@aws-sdk/client-lambda": "^3.142.0",
     "@aws-sdk/client-sts": "^3.142.0",
     "@aws-sdk/credential-provider-node": "^3.142.0",
     "signale": "^1.4.0",

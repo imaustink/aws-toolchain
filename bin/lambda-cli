@@ -1,0 +1,75 @@
+#!/usr/bin/env node
+const { AWSConfiguration } = require("../src/aws");
+const { CloudWatchClient } = require("../src/cloudwatch");
+const { signale } = require("../src/signale");
+
+const { argv } = require("yargs/yargs")(process.argv.slice(2))
+  .command({
+    command: "logs",
+    aliases: ["log", "tail"],
+    desc: "Tail the logs of an ECS container",
+    builder: (yargs) => {
+      return yargs
+        .usage("Usage: $0 logs -p bafs-dev -c clearwater-ecs -s objects")
+        .alias("s", "service")
+        .alias("n", "functionName")
+        .alias("f", "follow")
+        .boolean("f")
+        .demandOption(["service", "functionName"]);
+    },
+  })
+  .alias("r", "region")
+  .alias("p", "profile")
+  .default("r", "us-east-1")
+  .option("debug")
+  .demandCommand();
+
+const {
+  profile,
+  region,
+  service,
+  functionName,
+  follow,
+  _: [command],
+} = argv;
+
+signale.log({ profile, region, service, functionName, follow, command });
+
+const configuration = new AWSConfiguration(profile, region);
+const cloudWatchClient = new CloudWatchClient(configuration);
+
+function lambdaLogs(service, functionName) {
+  let logLinesEmitter;
+  const logGroupName = `/aws/lambda/${service}-${functionName}`;
+  const logStreamsEmitter = cloudWatchClient.createLogStreamsEmitter(
+    logGroupName,
+    { descending: true, orderBy: "LastEventTime", limit: 1 }
+  );
+
+  logStreamsEmitter.on("data", (logStreams) => {
+    if (logLinesEmitter) logLinesEmitter.stop();
+
+    const { logStreamName } = logStreams[0];
+
+    logLinesEmitter = cloudWatchClient.createLogStreamLinesEmitter(
+      logGroupName,
+      logStreamName
+    );
+
+    logLinesEmitter.on("data", (lines) => {
+      process.stdout.write(`${lines.join("\n")}\n`);
+      if (!follow) logStreamsEmitter.stop();
+    });
+
+    logStreamsEmitter.on("error", (error) => signale.error(error));
+
+    logLinesEmitter.start();
+  });
+
+  logStreamsEmitter.start();
+}
+
+switch (command) {
+  case "logs":
+    lambdaLogs(service, functionName);
+}

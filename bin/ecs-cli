@@ -25,7 +25,6 @@ const { argv } = require("yargs/yargs")(process.argv.slice(2))
   .option("debug")
   .demandCommand();
 
-// TODO use arg parser
 const {
   profile,
   region,
@@ -39,7 +38,7 @@ const configuration = new AWSConfiguration(profile, region);
 const ecsClient = new ECSClient(configuration);
 const cloudWatchClient = new CloudWatchClient(configuration);
 
-signale.log({ profile, region, cluster, service, command });
+signale.log({ profile, region, cluster, service, follow, command });
 
 switch (command) {
   case "logs":
@@ -52,5 +51,18 @@ async function logsHandler() {
     clusterArn,
     service
   );
-  await cloudWatchClient.tailLogStream(logGroupName, logStreamName, { follow });
+
+  const logStreamsEmitter = cloudWatchClient.createLogStreamLinesEmitter(
+    logGroupName,
+    logStreamName
+  );
+
+  logStreamsEmitter.on("data", (lines) => {
+    process.stdout.write(`${lines.join("\n")}\n`);
+    if (!follow) logStreamsEmitter.stop();
+  });
+
+  logStreamsEmitter.on("error", (error) => signale.error(error));
+
+  logStreamsEmitter.start();
 }
