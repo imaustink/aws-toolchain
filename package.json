@@ -1,7 +1,7 @@
 {
   "name": "aws-toolchain",
   "description": "Tools to make AWS less painful",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "author": "Austin Kurpuis",
   "bin": {
     "ecs": "bin/ecs-cli",

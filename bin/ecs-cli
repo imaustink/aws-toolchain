@@ -34,22 +34,51 @@ const {
   _: [command],
 } = argv;
 
+signale.log({ profile, region, cluster, service, follow, command });
+
 const configuration = new AWSConfiguration(profile, region);
 const ecsClient = new ECSClient(configuration);
 const cloudWatchClient = new CloudWatchClient(configuration);
 
-signale.log({ profile, region, cluster, service, follow, command });
-
 switch (command) {
   case "logs":
-    logsHandler().catch((error) => signale.error(error));
+    logsHandler(cluster, service, follow).catch((error) =>
+      console.error(error)
+    );
 }
 
-async function logsHandler() {
-  const clusterArn = await ecsClient.findCluster(cluster);
+async function logsHandler(cluster, service, follow) {
+  const clusterQuery = new RegExp(cluster, "i");
+  const matchingClusters = await ecsClient.searchClusterNames(clusterQuery);
+
+  // TODO print out available cluster names
+  if (matchingClusters.length === 0)
+    throw new Error(`No clusters matching ${clusterQuery} were found!`);
+  // TODO setup a prompt here
+  if (matchingClusters.length > 1)
+    throw new Error(
+      `More than one cluster matching ${clusterQuery} was found!`
+    );
+
+  const [clusterArn] = matchingClusters;
+
+  const taskQuery = new RegExp(service, "i");
+
+  const matchingTasks = await ecsClient.searchTaskNames(clusterArn, taskQuery);
+
+  // TODO print out available tasks names
+  if (matchingTasks.length === 0)
+    throw new Error(`No tasks matching ${taskQuery} were found!`);
+  // TODO setup a prompt here
+  if (matchingTasks.length > 1)
+    throw new Error(`More than one task matching ${taskQuery} was found!`);
+
+  const { taskArn, taskDefinitionArn } = matchingTasks[0];
+  const [, , taskId] = taskArn.split("/");
+
   const { logGroupName, logStreamName } = await ecsClient.findTaskLogStream(
-    clusterArn,
-    service
+    taskDefinitionArn,
+    taskId
   );
 
   const logStreamsEmitter = cloudWatchClient.createLogStreamLinesEmitter(
@@ -62,7 +91,7 @@ async function logsHandler() {
     if (!follow) logStreamsEmitter.stop();
   });
 
-  logStreamsEmitter.on("error", (error) => signale.error(error));
+  logStreamsEmitter.on("error", (error) => console.error(error));
 
   logStreamsEmitter.start();
 }

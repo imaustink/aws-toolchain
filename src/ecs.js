@@ -6,31 +6,25 @@ class ECSClient {
     this.client = new ECS(configuration);
   }
 
-  async findCluster(name) {
-    signale.log(`Searching for cluster matching ${name}`);
+  async searchClusterNames(query) {
+    signale.log(`Searching for cluster matching ${query}`);
 
     const clusters = await this.client.listClusters({});
 
     signale.debug(`Received ${clusters.clusterArns.length} clusters`);
     signale.debug(clusters.clusterArns);
 
-    const matchingClusters = clusters.clusterArns.filter((arn) =>
-      arn.includes(name)
+    const matchingClusters = clusters.clusterArns.filter(
+      (arn) => arn.search(query) > 0
     );
-    // TODO print out available cluster names
-    if (matchingClusters.length === 0)
-      throw new Error(`No clusters matching ${name} were found!`);
-    // TODO setup a prompt here
-    if (matchingClusters.length > 1)
-      throw new Error(`More than one cluster matching ${name} was found!`);
 
-    signale.debug(`Found matching cluster ${matchingClusters[0]}`);
+    signale.debug(`Found ${matchingClusters.length} matching clusters`);
 
-    return matchingClusters[0];
+    return matchingClusters;
   }
 
-  async findTaskLogStream(cluster, name) {
-    signale.log(`Searching for task matching ${name}`);
+  async searchTaskNames(cluster, query) {
+    signale.log(`Searching for task matching ${query}`);
 
     // TODO filter tasks here so we can bail out early
     const tasks = await this.client.listTasks({
@@ -39,6 +33,7 @@ class ECSClient {
 
     signale.debug(`Received ${tasks.taskArns.length} tasks`);
 
+    // TODO handle pagination
     const taskDetails = await this.client.describeTasks({
       cluster,
       tasks: tasks.taskArns,
@@ -46,24 +41,23 @@ class ECSClient {
 
     signale.debug(`Received ${tasks.taskArns.length} task descriptions`);
 
-    const matchingTasks = taskDetails.tasks.filter(({ taskDefinitionArn }) =>
-      taskDefinitionArn.includes(name)
+    const matchingTasks = taskDetails.tasks.filter(
+      ({ taskDefinitionArn }) => taskDefinitionArn.search(query) > 0
     );
-    // TODO print available task names
-    if (matchingTasks.length === 0)
-      throw new Error(`No tasks matching ${name} were found!`);
 
-    signale.debug(`Found matching task ${matchingTasks[0].taskArn}`);
+    signale.debug(`Found  ${matchingTasks.length} matching task`);
 
-    const { taskArn, taskDefinitionArn } = matchingTasks[0];
-    const [, , taskId] = taskArn.split("/");
-    // signale.log(matchingTasks);
+    return matchingTasks;
+  }
+
+  async findTaskLogStream(taskArn, taskId) {
+    signale.log(`Getting log stream for task`);
 
     const { taskDefinition } = await this.client.describeTaskDefinition({
-      taskDefinition: taskDefinitionArn,
+      taskDefinition: taskArn,
     });
 
-    signale.debug(`Received task definition ${taskDefinitionArn}`);
+    signale.debug(`Received task definition ${taskArn}`);
 
     // TODO need a more universal fix for this
     const { name: serviceName, logConfiguration } =

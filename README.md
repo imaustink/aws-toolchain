@@ -28,6 +28,7 @@ Options:
       --help          Show help                       [boolean]
       --version       Show version number             [boolean]
       --debug
+  -p, --profile                                      [required]
   -s, --service                                      [required]
   -n, --functionName                                 [required]
   -r, --region                           [default: "us-east-1"]

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const { AWSConfiguration } = require("../src/aws");
 const { CloudWatchClient } = require("../src/cloudwatch");
+const { LambdaClient } = require("../src/lambda");
 const { signale } = require("../src/signale");
 
 const { argv } = require("yargs/yargs")(process.argv.slice(2))
@@ -10,12 +11,14 @@ const { argv } = require("yargs/yargs")(process.argv.slice(2))
     desc: "Tail the logs of an ECS container",
     builder: (yargs) => {
       return yargs
-        .usage("Usage: $0 logs -p bafs-dev -c clearwater-ecs -s objects")
+        .usage(
+          "Usage: $0 logs -p bafs-dev -s cms-reports-service -n render-template"
+        )
         .alias("s", "service")
         .alias("n", "functionName")
         .alias("f", "follow")
         .boolean("f")
-        .demandOption(["service", "functionName"]);
+        .demandOption(["profile", "service", "functionName"]);
     },
   })
   .alias("r", "region")
@@ -37,14 +40,27 @@ signale.log({ profile, region, service, functionName, follow, command });
 
 const configuration = new AWSConfiguration(profile, region);
 const cloudWatchClient = new CloudWatchClient(configuration);
+const lambda = new LambdaClient(configuration);
 
-function lambdaLogs(service, functionName) {
-  let logLinesEmitter;
-  const logGroupName = `/aws/lambda/${service}-${functionName}`;
+async function lambdaLogs(service, functionName) {
+  const query = new RegExp(functionName, "i");
+  const matchingFunctions = await lambda.searchFunctionNames(query);
+
+  // TODO print out available function names
+  if (matchingFunctions.length === 0)
+    throw new Error(`No functions matching ${query} were found!`);
+  // TODO setup a prompt here
+  if (matchingFunctions.length > 1)
+    throw new Error(`More than one cluster matching ${query} was found!`);
+
+  const { FunctionName } = matchingFunctions[0];
+
+  const logGroupName = `/aws/lambda/${FunctionName}`;
   const logStreamsEmitter = cloudWatchClient.createLogStreamsEmitter(
     logGroupName,
     { descending: true, orderBy: "LastEventTime", limit: 1 }
   );
+  let logLinesEmitter;
 
   logStreamsEmitter.on("data", (logStreams) => {
     if (logLinesEmitter) logLinesEmitter.stop();
@@ -58,10 +74,13 @@ function lambdaLogs(service, functionName) {
 
     logLinesEmitter.on("data", (lines) => {
       process.stdout.write(`${lines.join("\n")}\n`);
-      if (!follow) logStreamsEmitter.stop();
+      if (!follow) {
+        logLinesEmitter.stop();
+        logStreamsEmitter.stop();
+      }
     });
 
-    logStreamsEmitter.on("error", (error) => signale.error(error));
+    logStreamsEmitter.on("error", (error) => console.error(error));
 
     logLinesEmitter.start();
   });
@@ -71,5 +90,5 @@ function lambdaLogs(service, functionName) {
 
 switch (command) {
   case "logs":
-    lambdaLogs(service, functionName);
+    lambdaLogs(service, functionName).catch((error) => console.error(error));
 }
